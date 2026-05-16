@@ -15,7 +15,10 @@ fun main(args: Array<String>) {
     val path = "C:\\Users\\klocke\\Desktop\\lumina-docker\\photos"
 
     val service = TranslationService(
-        TranslationConfig(preferredLocale = "de")
+        TranslationConfig(
+            preferredLocale = "de",
+            cacheFilePath = "C:\\Users\\klocke\\Desktop\\lumina-docker\\xmp-taxa-translator-cache.json"
+        )
     )
     service.processDirectory(path)
 

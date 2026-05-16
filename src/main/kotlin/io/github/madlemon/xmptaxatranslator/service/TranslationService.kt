@@ -1,5 +1,8 @@
 package io.github.madlemon.xmptaxatranslator.service
 
+import io.github.madlemon.xmptaxatranslator.cache.FileTaxonTranslationCache
+import io.github.madlemon.xmptaxatranslator.cache.InMemoryTaxonTranslationCache
+import io.github.madlemon.xmptaxatranslator.cache.TaxonTranslationCache
 import io.github.madlemon.xmptaxatranslator.inat.INaturalistClient
 import io.github.madlemon.xmptaxatranslator.model.TaxonTranslations
 import io.github.madlemon.xmptaxatranslator.xmp.XmpReader
@@ -16,6 +19,9 @@ class TranslationService(
     private val requestDelayMs = 1200L
     private var lastRequestTime = 0L
 
+    private lateinit var cache: TaxonTranslationCache
+    private val iNat = INaturalistClient()
+
     fun processDirectory(directoryPath: String) = runBlocking {
         val dir = File(directoryPath)
 
@@ -24,7 +30,18 @@ class TranslationService(
             return@runBlocking
         }
 
-        logger.info("Config: locale={}, keyword={}", config.preferredLocale, config.iNaturalistKeyword)
+        logger.info(
+            "Config: locale={}, keyword={}, cacheFilePath={}",
+            config.preferredLocale,
+            config.iNaturalistKeyword,
+            config.cacheFilePath
+        )
+
+        cache = if (config.cacheFilePath != null) {
+            FileTaxonTranslationCache(File(config.cacheFilePath))
+        } else {
+            InMemoryTaxonTranslationCache()
+        }
 
         val xmpFiles = dir
             .walkTopDown()
@@ -54,35 +71,48 @@ class TranslationService(
             logger.info(" - $it")
         }
 
-        val description = metadata.description
+        val englishName = metadata.description
             ?: run {
                 logger.info("No description found, skipping iNaturalist lookup.")
                 return@runBlocking
             }
-
 
         if (!metadata.iptcKeywords.contains(config.iNaturalistKeyword)) {
             logger.warn("No iNat21 keyword found, skipping iNaturalist lookup.")
             return@runBlocking
         }
 
-        logger.info("Fetching translations from iNaturalist API...")
-        val iNat = INaturalistClient()
-        rateLimit()
-        val result = iNat.searchSpecies(description, config.preferredLocale)
 
-        logger.info("Latin: ${result?.name}")
-        logger.info("${config.preferredLocale}: ${result?.preferred_common_name}")
+        val translation = cache.getOrPut(normalize(englishName)) {
+            logger.info("Fetching translations from iNaturalist API...")
 
-        val translation = TaxonTranslations(
-            metadata.description,
-            result?.preferred_common_name,
-            result?.name
-        )
+            rateLimit()
+            val result = iNat.searchSpecies(englishName, config.preferredLocale)
+
+            result?.let {
+                TaxonTranslations(
+                    englishCommonName = englishName,
+                    preferredCommonName = it.preferred_common_name,
+                    latinName = it.name
+                )
+            }
+        }
+
+        if (translation == null) {
+            logger.warn("No translation found for {}", englishName)
+            return@runBlocking
+        }
+
+        logger.info("Latin: ${translation.latinName}")
+        logger.info("${config.preferredLocale}: ${translation.preferredCommonName}")
 
         logger.info("Adding new Keywords to XMP...")
         val writer = XmpWriter()
         writer.write(filePath, metadata, translation)
+    }
+
+    private fun normalize(query: String): String {
+        return query.trim().lowercase()
     }
 
     private suspend fun rateLimit() {
