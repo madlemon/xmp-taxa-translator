@@ -5,8 +5,10 @@ import io.github.madlemon.xmptaxatranslator.cache.InMemoryTaxonTranslationCache
 import io.github.madlemon.xmptaxatranslator.cache.TaxonTranslationCache
 import io.github.madlemon.xmptaxatranslator.inat.INaturalistClient
 import io.github.madlemon.xmptaxatranslator.model.TaxonTranslations
+import io.github.madlemon.xmptaxatranslator.model.XmpTaxonMetadata
+import io.github.madlemon.xmptaxatranslator.xmp.DarktableXmpWriter
+import io.github.madlemon.xmptaxatranslator.xmp.LuminaXmpWriter
 import io.github.madlemon.xmptaxatranslator.xmp.XmpReader
-import io.github.madlemon.xmptaxatranslator.xmp.XmpWriter
 import kotlinx.coroutines.runBlocking
 import java.io.File
 
@@ -45,7 +47,11 @@ class TranslationService(
 
         val xmpFiles = dir
             .walkTopDown()
-            .filter { it.isFile && it.extension.lowercase() == "xmp" }
+            .filter { file ->
+                file.isFile &&
+                        file.extension.equals("xmp", ignoreCase = true) &&
+                        !isDarktableSidecar(file)
+            }
             .toList()
 
         logger.info("Found ${xmpFiles.size} XMP files")
@@ -59,11 +65,18 @@ class TranslationService(
         }
     }
 
-    private fun process(filePath: String) = runBlocking {
-        logger.info("Processing $filePath")
+    private fun isDarktableSidecar(file: File): Boolean {
+        val name = file.nameWithoutExtension // removes .xmp
+
+        return name.contains(".") // implies raw extension exists
+    }
+
+
+    private fun process(luminarXmpPath: String) = runBlocking {
+        logger.info("Processing $luminarXmpPath")
         logger.info("Reading XMP...")
         val reader = XmpReader()
-        val metadata = reader.read(filePath)
+        val metadata = reader.read(luminarXmpPath)
 
         logger.info("Description: ${metadata.description}")
         logger.info("Keywords:")
@@ -92,7 +105,7 @@ class TranslationService(
             result?.let {
                 TaxonTranslations(
                     englishCommonName = englishName,
-                    preferredCommonName = it.preferred_common_name,
+                    preferredCommonName = it.preferred_common_name.orEmpty(),
                     latinName = it.name
                 )
             }
@@ -106,10 +119,57 @@ class TranslationService(
         logger.info("Latin: ${translation.latinName}")
         logger.info("${config.preferredLocale}: ${translation.preferredCommonName}")
 
-        logger.info("Adding new Keywords to XMP...")
-        val writer = XmpWriter()
-        writer.write(filePath, metadata, translation)
+        val darkTableXmp = findDarktableSidecar(luminarXmpPath)
+        val darktableXmpExists = darkTableXmp != null
+        if (darktableXmpExists) {
+            logger.info("Adding classification info to existing Darktable XMP...")
+            updateDarktableXmp(metadata, translation, darkTableXmp)
+        } else {
+            logger.info("Adding translation to Lumina XMP...")
+            updateLuminaXmp(luminarXmpPath, metadata, translation)
+        }
+
+
     }
+
+    private fun updateLuminaXmp(
+        luminarXmpPath: String,
+        metadata: XmpTaxonMetadata,
+        translation: TaxonTranslations
+    ) {
+        val writer = LuminaXmpWriter(config.preferredLocale)
+        writer.write(luminarXmpPath, metadata, translation)
+    }
+
+    private fun updateDarktableXmp(
+        metadata: XmpTaxonMetadata,
+        translation: TaxonTranslations,
+        darkTableXmp: File
+    ) {
+        val darktableXmpWriter = DarktableXmpWriter()
+        val keywords = (metadata.iptcKeywords
+                - translation.englishCommonName
+                + translation.preferredCommonName)
+            .toMutableSet()
+            .toList()
+            .joinToString("|")
+        darktableXmpWriter.write(darkTableXmp.path, translation, keywords)
+    }
+
+    fun findDarktableSidecar(luminarXmpPath: String): File? {
+        val luminarFile = File(luminarXmpPath)
+        val dir = luminarFile.parentFile ?: return null
+
+        val baseName = luminarFile.nameWithoutExtension
+
+        return dir.listFiles()
+            ?.firstOrNull { file ->
+                file.name.startsWith("$baseName.") &&
+                        file.name.endsWith(".xmp") &&
+                        file.name != luminarFile.name
+            }
+    }
+
 
     private fun normalize(query: String): String {
         return query.trim().lowercase()

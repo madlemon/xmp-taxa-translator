@@ -5,7 +5,6 @@ import io.github.madlemon.xmptaxatranslator.model.TaxonTranslations
 interface TaxonTranslationCache {
 
     suspend fun getOrPut(
-        key: String,
-        producer: suspend () -> TaxonTranslations?
+        key: String, producer: suspend () -> TaxonTranslations?
     ): TaxonTranslations?
 }

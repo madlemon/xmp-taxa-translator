@@ -3,10 +3,6 @@ package io.github.madlemon.xmptaxatranslator
 import io.github.madlemon.xmptaxatranslator.service.TranslationConfig
 import io.github.madlemon.xmptaxatranslator.service.TranslationService
 
-const val PREFERRED_LOCALE = "de"
-
-const val I_NATURALIST_KEYWORD = "Inat21"
-
 fun main(args: Array<String>) {
     println("Hello XMP Taxa Translator")
 

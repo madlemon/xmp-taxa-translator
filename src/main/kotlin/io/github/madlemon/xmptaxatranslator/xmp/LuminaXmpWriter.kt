@@ -1,6 +1,5 @@
 package io.github.madlemon.xmptaxatranslator.xmp
 
-import io.github.madlemon.xmptaxatranslator.PREFERRED_LOCALE
 import io.github.madlemon.xmptaxatranslator.model.TaxonTranslations
 import io.github.madlemon.xmptaxatranslator.model.XmpTaxonMetadata
 import org.w3c.dom.Document
@@ -9,7 +8,7 @@ import org.w3c.dom.Element
 private const val DC_NS = "http://purl.org/dc/elements/1.1/"
 private const val TIFF_NS = "http://ns.adobe.com/tiff/1.0/"
 
-class XmpWriter {
+class LuminaXmpWriter(private val preferredLocale: String) {
     fun write(
         filePath: String, originalData: XmpTaxonMetadata, translationData: TaxonTranslations
     ) {
@@ -31,13 +30,8 @@ class XmpWriter {
         if (newDescription != null) {
             writeMultilangDescription(
                 rdfDescription,
-                valueXDefault = translationData.englishCommonName,
-                valueTranslated = translationData.preferredCommonName,
-                valueLatin = translationData.latinName
-            )
-            writeMultilangDescription(
-                rdfDescription,
-                valueXDefault = translationData.englishCommonName,
+                valueXDefault = translationData.preferredCommonName,
+                valueEnglish = translationData.englishCommonName,
                 valueTranslated = translationData.preferredCommonName,
                 valueLatin = translationData.latinName
             )
@@ -47,7 +41,7 @@ class XmpWriter {
     }
 
     private fun writeKeywords(parent: Element, keywords: Set<String>) {
-        val bag = parent.getElementsByTagName("Iptc4xmpCore:Keywords")
+        val bag = parent.getElementsByTagName("lr:hierarchicalSubject")
             .item(0) as Element
 
         val rdfBag = bag.getElementsByTagName("rdf:Bag")
@@ -78,7 +72,11 @@ class XmpWriter {
     }
 
     private fun writeMultilangDescription(
-        parent: Element, valueXDefault: String, valueTranslated: String?, valueLatin: String?
+        parent: Element,
+        valueXDefault: String,
+        valueEnglish: String,
+        valueTranslated: String,
+        valueLatin: String?
     ) {
         val tiffNode = parent.getElementsByTagNameNS(TIFF_NS, "ImageDescription")
             .item(0) as Element
@@ -97,8 +95,8 @@ class XmpWriter {
 
         val doc = parent.ownerDocument
 
-        writeAlt(tiffNode, doc, valueXDefault, valueTranslated, valueLatin)
-        writeAlt(dcNode, doc, valueXDefault, valueTranslated, valueLatin)
+        writeAlt(tiffNode, doc, valueXDefault, valueEnglish, valueTranslated, valueLatin)
+        writeAlt(dcNode, doc, valueXDefault, valueEnglish, valueTranslated, valueLatin)
     }
 
     private fun clearAlt(alt: Element) {
@@ -110,7 +108,12 @@ class XmpWriter {
     }
 
     private fun writeAlt(
-        node: Element, doc: Document, xDefault: String, de: String?, la: String?
+        node: Element,
+        doc: Document,
+        xDefault: String,
+        en: String,
+        preferred: String,
+        la: String?
     ) {
         val alt = node.getElementsByTagName("rdf:Alt").item(0) as Element
 
@@ -127,7 +130,8 @@ class XmpWriter {
         }
 
         add("x-default", xDefault)
-        de?.let { add(PREFERRED_LOCALE, it) }
+        add("en", en)
+        add(preferredLocale, preferred)
         la?.let { add("la", it) }
     }
 

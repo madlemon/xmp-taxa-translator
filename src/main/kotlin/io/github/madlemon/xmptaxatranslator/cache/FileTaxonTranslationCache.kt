@@ -25,8 +25,7 @@ class FileTaxonTranslationCache(
     private var cache: MutableMap<String, TaxonTranslations?> = load()
 
     override suspend fun getOrPut(
-        key: String,
-        producer: suspend () -> TaxonTranslations?
+        key: String, producer: suspend () -> TaxonTranslations?
     ): TaxonTranslations? {
 
         cache[key]?.let {
@@ -48,8 +47,7 @@ class FileTaxonTranslationCache(
 
         return try {
             val text = file.readText()
-            json.decodeFromString<Map<String, TaxonTranslations?>>(text)
-                .toMutableMap()
+            json.decodeFromString<Map<String, TaxonTranslations?>>(text).toMutableMap()
         } catch (_: Exception) {
             mutableMapOf()
         }

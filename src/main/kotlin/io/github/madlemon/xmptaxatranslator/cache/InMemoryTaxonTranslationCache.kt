@@ -7,8 +7,7 @@ class InMemoryTaxonTranslationCache : TaxonTranslationCache {
     private val cache = mutableMapOf<String, TaxonTranslations?>()
 
     override suspend fun getOrPut(
-        key: String,
-        producer: suspend () -> TaxonTranslations?
+        key: String, producer: suspend () -> TaxonTranslations?
     ): TaxonTranslations? {
         if (cache.containsKey(key)) {
             return cache[key]
