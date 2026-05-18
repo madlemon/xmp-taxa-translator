@@ -35,7 +35,7 @@ class TranslationService(
         logger.info(
             "Config: locale={}, keyword={}, cacheFilePath={}",
             config.preferredLocale,
-            config.iNaturalistKeyword,
+            config.iNaturalistModel,
             config.cacheFilePath
         )
 
@@ -75,23 +75,23 @@ class TranslationService(
     private fun process(luminarXmpPath: String) = runBlocking {
         logger.info("Processing $luminarXmpPath")
         logger.info("Reading XMP...")
-        val reader = XmpReader()
+        val reader = XmpReader(config.iNaturalistModel)
         val metadata = reader.read(luminarXmpPath)
 
-        logger.info("Description: ${metadata.description}")
+        logger.info("Description: ${metadata.detectedSpecies}")
         logger.info("Keywords:")
-        metadata.iptcKeywords.forEach {
+        metadata.keywords.forEach {
             logger.info(" - $it")
         }
 
-        val englishName = metadata.description
+        val englishName = metadata.detectedSpecies
             ?: run {
                 logger.info("No description found, skipping iNaturalist lookup.")
                 return@runBlocking
             }
 
-        if (!metadata.iptcKeywords.contains(config.iNaturalistKeyword)) {
-            logger.warn("No iNat21 keyword found, skipping iNaturalist lookup.")
+        if (!metadata.keywords.contains(config.iNaturalistModel)) {
+            logger.warn("No iNat21 classification found, skipping iNaturalist lookup.")
             return@runBlocking
         }
 
@@ -124,10 +124,9 @@ class TranslationService(
         if (darktableXmpExists) {
             logger.info("Adding classification info to existing Darktable XMP...")
             updateDarktableXmp(metadata, translation, darkTableXmp)
-        } else {
-            logger.info("Adding translation to Lumina XMP...")
-            updateLuminaXmp(luminarXmpPath, metadata, translation)
         }
+        logger.info("Adding translation to Lumina XMP...")
+        updateLuminaXmp(luminarXmpPath, metadata, translation)
 
 
     }
@@ -147,7 +146,7 @@ class TranslationService(
         darkTableXmp: File
     ) {
         val darktableXmpWriter = DarktableXmpWriter()
-        val keywords = (metadata.iptcKeywords
+        val keywords = (metadata.keywords
                 - translation.englishCommonName
                 + translation.preferredCommonName)
             .toMutableSet()

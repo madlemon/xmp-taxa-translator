@@ -16,7 +16,7 @@ class LuminaXmpWriter(private val preferredLocale: String) {
         val rdfDescription = XmpXmlUtils.findDescription(doc)
 
         val keywords = mutableSetOf<String>().apply {
-            addAll(originalData.iptcKeywords)
+            addAll(originalData.keywords)
             translationData.preferredCommonName?.let { add(it) }
             translationData.latinName?.let { add(it) }
         }
@@ -41,7 +41,7 @@ class LuminaXmpWriter(private val preferredLocale: String) {
     }
 
     private fun writeKeywords(parent: Element, keywords: Set<String>) {
-        val bag = parent.getElementsByTagName("lr:hierarchicalSubject")
+        val bag = parent.getElementsByTagName("Iptc4xmpCore:Keywords")
             .item(0) as Element
 
         val rdfBag = bag.getElementsByTagName("rdf:Bag")

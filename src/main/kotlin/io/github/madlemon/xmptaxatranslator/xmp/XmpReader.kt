@@ -3,19 +3,17 @@ package io.github.madlemon.xmptaxatranslator.xmp
 import io.github.madlemon.xmptaxatranslator.model.XmpTaxonMetadata
 import org.w3c.dom.Element
 
-class XmpReader {
+class XmpReader(private val iNaturalistModel: String) {
 
     fun read(filePath: String): XmpTaxonMetadata {
         val doc = XmpXmlUtils.parseXml(filePath)
         val rdfDescription = XmpXmlUtils.findDescription(doc)
 
-        val iptcKeywords = extractBag(rdfDescription, "Iptc4xmpCore:Keywords")
-
-        val description = extractDescription(rdfDescription)
+        val hierarchicalSubjects = extractBag(rdfDescription, "lr:hierarchicalSubject")
 
         return XmpTaxonMetadata(
-            description = description,
-            iptcKeywords = iptcKeywords.toSet()
+            detectedSpecies = extractDetectedSpecies(hierarchicalSubjects),
+            keywords = extractInatClassification(hierarchicalSubjects)?.split("|")?.toSet() ?: emptySet()
         )
     }
 
@@ -34,14 +32,11 @@ class XmpReader {
         return result
     }
 
-    private fun extractDescription(parent: Element): String? {
-        val nodes = parent.getElementsByTagName("tiff:ImageDescription")
-        if (nodes.length == 0) return null
-
-        val alt = nodes.item(0) as Element
-        val li = alt.getElementsByTagName("rdf:li")
-
-        if (li.length == 0) return null
-        return li.item(0).textContent
+    private fun extractDetectedSpecies(hierarchicalSubjects: List<String>): String? {
+        return extractInatClassification(hierarchicalSubjects)?.substringAfterLast("|")
     }
+
+    private fun extractInatClassification(hierarchicalSubjects: List<String>): String? =
+        hierarchicalSubjects.firstOrNull { it.startsWith(iNaturalistModel) }
+
 }

@@ -30,6 +30,14 @@ class INaturalistClient {
             }
         }.body()
 
-        return response.results.firstOrNull()
+        return response.results
+            .firstOrNull { result ->
+                normalize(result.matched_term) == normalize(query) ||
+                        normalize(result.english_common_name) == normalize(query)
+            }
+    }
+
+    fun normalize(text: String?): String? {
+        return text?.trim()?.lowercase()
     }
 }

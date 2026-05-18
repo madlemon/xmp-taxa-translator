@@ -1,0 +1,5 @@
+###
+# curl "https://api.inaturalist.org/v1/taxa?q=Great%20Tit"
+GET https://api.inaturalist.org/v1/taxa?q=White-tailed%20eagle&locale=de&is_active=true&rank=species,subspecies
+
+###

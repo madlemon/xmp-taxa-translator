@@ -7,5 +7,7 @@ data class INatTaxon(
     val id: Int,
     val name: String, // Latin name
     val preferred_common_name: String? = null,
-    val rank: String? = null
+    val rank: String? = null,
+    val matched_term: String? = null,
+    val english_common_name: String? = null,
 )

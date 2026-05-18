@@ -53,20 +53,26 @@ class DarktableXmpWriter {
         t: TaxonTranslations
     ) {
         val desc = getOrCreateAltNode(parent, doc)
-
         val alt = desc.getElementsByTagName("rdf:Alt").item(0) as Element
 
-        // optional: prevent duplicates
-        val existingLangs = mutableSetOf<String>()
-        val existing = alt.getElementsByTagName("rdf:li")
-        for (i in 0 until existing.length) {
-            val el = existing.item(i) as Element
-            existingLangs.add(el.getAttribute("xml:lang"))
+        fun removeLang(lang: String) {
+            val nodes = alt.getElementsByTagName("rdf:li")
+            val toRemove = mutableListOf<Element>()
+
+            for (i in 0 until nodes.length) {
+                val el = nodes.item(i) as Element
+                if (el.getAttribute("xml:lang") == lang) {
+                    toRemove.add(el)
+                }
+            }
+
+            toRemove.forEach { alt.removeChild(it) }
         }
 
         fun add(lang: String, value: String?) {
             if (value == null) return
-            if (existingLangs.contains(lang)) return
+
+            removeLang(lang)
 
             val li = doc.createElement("rdf:li")
             li.setAttribute("xml:lang", lang)
