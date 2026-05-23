@@ -8,19 +8,11 @@ The project is distributed as a Docker image for easy and consistent execution.
 
 ---
 
-## 🐳 Docker Image
-
-```
-ghcr.io/madlemon/xmptaxatranslator:latest
-```
-
-
 ## What it does
 
 - Reads `.xmp` files from a directory
-- Translates Naturalist21 taxonomy classifications from English
-- Updates XMP metadata with translated values
-
+- Translates Naturalist21 taxonomy classifications from English. English value is searched in the `lr:hierarchicalSubject` tag.
+- Updates XMP metadata with translated values (updates `dc:description` and `lr:hierarchicalSubject`)
 
 ##  Usage
 
@@ -85,18 +77,17 @@ ghcr.io/madlemon/xmptaxatranslator:latest
 
 ```
 
-## 🌐 External API (iNaturalist)
+## External API (iNaturalist)
 
 This tool relies on the iNaturalist API to fetch and translate taxonomy data.
 
 API documentation: https://api.inaturalist.org/v1/
 
-### Notes
 - The API is subject to rate limits
 - Large batch operations should use `--cache-file` to reduce requests
 - Network connectivity is required during processing
 
-## 🛠️ Requirements
+## Requirements
 
 - Docker installed
 - Network connectivity
