@@ -4,21 +4,27 @@ import io.github.madlemon.xmptaxatranslator.service.TranslationConfig
 import io.github.madlemon.xmptaxatranslator.service.TranslationService
 
 fun main(args: Array<String>) {
-    println("Hello XMP Taxa Translator")
+    println("[START] XMP Taxa Translator")
 
     System.setProperty("org.slf4j.simpleLogger.defaultLogLevel", "info")
 
-    val path = "C:\\Users\\klocke\\Desktop\\lumina-docker\\photos"
+    val argMap = args
+        .toList()
+        .chunked(2)
+        .associate { it[0] to it[1] }
+
 
     val service = TranslationService(
         TranslationConfig(
-            preferredLocale = "de",
-            cacheFilePath = "C:\\Users\\klocke\\Desktop\\lumina-docker\\xmp-taxa-translator-cache.json"
+            preferredLocale = argMap["--locale"] ?: "de",
+            xmpDirectoryPath = argMap["--xmp-dir"]
+                ?: error("Missing required argument: --xmp-dir"),
+            cacheFilePath = argMap["--cache-file"]
         )
     )
-    service.processDirectory(path)
+    service.processDirectory()
 
-    println("DONE!")
+    println("[DONE] Translation completed")
 }
 
 

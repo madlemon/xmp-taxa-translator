@@ -3,7 +3,7 @@ plugins {
     kotlin("plugin.serialization") version "2.3.0"
 }
 
-group = "org.example"
+group = "io.github.madlemon"
 version = "1.0-SNAPSHOT"
 
 repositories {
@@ -28,6 +28,31 @@ dependencies {
 kotlin {
     jvmToolchain(25)
 }
+
+tasks.jar {
+    archiveFileName.set("app.jar")
+}
+
+tasks.withType<Jar> {
+    manifest {
+        attributes["Main-Class"] = "io.github.madlemon.xmptaxatranslator.MainKt"
+    }
+
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+
+    from(sourceSets.main.get().output)
+
+    dependsOn(configurations.runtimeClasspath)
+
+    from({
+        configurations.runtimeClasspath.get()
+            .filter { it.name.endsWith("jar") }
+            .map { zipTree(it) }
+    })
+}
+
+
+
 
 tasks.withType<JavaExec> {
     systemProperty("file.encoding", "UTF-8")

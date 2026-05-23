@@ -13,10 +13,10 @@ import kotlinx.coroutines.runBlocking
 import java.io.File
 
 class TranslationService(
-    private val config: TranslationConfig = TranslationConfig()
+    private val config: TranslationConfig
 ) {
 
-    private val logger = org.slf4j.LoggerFactory.getLogger(TranslationService::class.java)
+    private val logger = org.slf4j.LoggerFactory.getLogger("XmpTaxaTranslator")
 
     private val requestDelayMs = 1200L
     private var lastRequestTime = 0L
@@ -24,11 +24,11 @@ class TranslationService(
     private lateinit var cache: TaxonTranslationCache
     private val iNat = INaturalistClient()
 
-    fun processDirectory(directoryPath: String) = runBlocking {
-        val dir = File(directoryPath)
+    fun processDirectory() = runBlocking {
+        val dir = File(config.xmpDirectoryPath)
 
         if (!dir.exists() || !dir.isDirectory) {
-            logger.error("Invalid directory: $directoryPath")
+            logger.error("Invalid directory: {}", config.xmpDirectoryPath)
             return@runBlocking
         }
 
@@ -60,7 +60,7 @@ class TranslationService(
             try {
                 process(file.absolutePath)
             } catch (e: Exception) {
-                logger.error("Failed processing ${file.name}: ${e.message}")
+                logger.error("Failed processing {}: {}", file.name, e.message, e)
             }
         }
     }
@@ -73,16 +73,13 @@ class TranslationService(
 
 
     private fun process(luminarXmpPath: String) = runBlocking {
-        logger.info("Processing $luminarXmpPath")
+        logger.info("Processing {}", luminarXmpPath)
         logger.info("Reading XMP...")
         val reader = XmpReader(config.iNaturalistModel)
         val metadata = reader.read(luminarXmpPath)
 
         logger.info("Description: ${metadata.detectedSpecies}")
-        logger.info("Keywords:")
-        metadata.keywords.forEach {
-            logger.info(" - $it")
-        }
+        logger.info("Keywords: {}", metadata.keywords.joinToString(", "))
 
         val englishName = metadata.detectedSpecies
             ?: run {
@@ -116,8 +113,11 @@ class TranslationService(
             return@runBlocking
         }
 
-        logger.info("Latin: ${translation.latinName}")
-        logger.info("${config.preferredLocale}: ${translation.preferredCommonName}")
+        logger.info("Translation - latin={}, {}={}",
+            translation.latinName,
+            config.preferredLocale,
+            translation.preferredCommonName
+        )
 
         val darkTableXmp = findDarktableSidecar(luminarXmpPath)
         val darktableXmpExists = darkTableXmp != null
